@@ -1,0 +1,488 @@
+마른수건짜기
+이재성 | 고언어로 API Gateway + Lambda 쉽게 쓰기
+
+* 목차
+- 발표 주제 소개
+- Golang Lambda 배포 실습
+- Golang API Gateway + Lambda 실습
+- Golang API Gateway + Lambda 라우팅, 문제점 파악, 문제 해결 여정
+- *httplam*, *echolam* 소개
+
+* 발표 주제 소개
+
+* 왜? API Gateway + Lambda를 선택했는가
+*!!!!!!MONEY!!!!!*
+.image 마른수건짜기/img_money.jpeg 400 566
+
+* API Gateway Pricing
+
+*프리티어* *기간*
+매월 무료
+
+- 수신 API 호출 100만 개
+- 수신 HTTP 호출 100만 개
+- 메시지 100만 개
+- 연결 시간 750,000분
+
+*비용*
+
+.html 마른수건짜기/tbl_apigw_pricing.html
+
+* Lambda Pricing
+*평생*
+매월 무료
+
+- 요청 100만 건
+
+*비용*
+.html 마른수건짜기/tbl_lambda_pricing.html
+
+
+* 기존 서버리스 아키텍처
+
+# .image 마른수건짜기/app_arch_typ1.png 500 554
+.image 마른수건짜기/app_arch_typ2.png 500 580
+
+* 기존 서버리스 아키텍쳐의 문제점
+- 새로운 기능(피쳐)를 추가하는 데 불편함
+- 배포 포인트가 늘어남
+- 추후 서버리스를 탈피 하기힘듦(벤더락)
+
+* 어떻게 해결해야 할까?
+
+.image 마른수건짜기/고민_아하어린이.jpg 500 578
+
+* 해결 방법
+- 하나의 람다로만 관리하면?
+
+.image 마른수건짜기/아하_아하어린이.jpg 400 400
+
+* 새로운 서버리스 아키텍처
+
+.image 마른수건짜기/app_new_arch.png 112 500
+
+* Golang Lambda 실습
+
+* 고언어, 람다 Get Started
+
+[[https://github.com/aws/aws-lambda-go#getting-started][Reference]]
+
+    // main.go
+    package main
+
+    import (
+        "github.com/aws/aws-lambda-go/lambda"
+    )
+
+    func hello() (string, error) {
+        return "Hello λ!", nil
+    }
+
+    func main() {
+        // Make the handler available for Remote Procedure Call by AWS Lambda
+        lambda.Start(hello)
+    }
+
+
+
+* 고언어 람다 핸들러 형태
+
+[[https://docs.aws.amazon.com/lambda/latest/dg/golang-handler.html#golang-handler-structs][Reference]]
+
+    func () 
+
+    func () error 
+
+    func (TIn) error 
+
+    func () (TOut, error) 
+
+    func (context.Context) error 
+
+    func (context.Context, TIn) error 
+
+    func (context.Context) (TOut, error) 
+
+    func (context.Context, TIn) (TOut, error)
+
+    func (context.Context, []byte) ([]byte, error)
+
+* 코드 예제
+
+    package main
+
+    import (
+        "context"
+        "encoding/json"
+        "github.com/aws/aws-lambda-go/lambda"
+    )
+
+    var _ lambda.Handler = (*handler)(nil)
+
+    type handler struct{}
+
+    func (*handler) Invoke(_ context.Context, _ []byte) ([]byte, error) {
+        return json.Marshal("hello world")
+    }
+
+    func main() {
+        lambda.Start(&handler{})
+    }
+
+* 배포 방법
+
+[[https://docs.aws.amazon.com/ko_kr/lambda/latest/dg/golang-package.html#golang-package-mac-linux][Reference]]
+
+    GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -o main main.go
+
+    zip function.zip main
+
+.image 마른수건짜기/go_lambda_deploy_1.png 214 980
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_2.png 177 980
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_3.png 443 980
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_4.png 422 980
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_5.png 542 980
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_6.png 98 980
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_7.png 500 780
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_8.png 149 980
+
+* 배포 방법
+
+.image 마른수건짜기/go_lambda_deploy_9.png 500 876
+
+* Golang API Gateway + Lambda 실습
+
+* 코드 예제
+
+    func (*handler) Invoke(_ context.Context, payload []byte) ([]byte, error) {
+        var req events.APIGatewayV2HTTPRequest
+        err := json.Unmarshal(payload, &req)
+        if err != nil {
+            return nil, err
+        }
+
+        resp := events.APIGatewayV2HTTPResponse{
+            StatusCode: http.StatusOK,
+            Headers: map[string]string{
+                "Content-Type": "application/json",
+            },
+            MultiValueHeaders: nil,
+            Body:              `{"hello": "world"}`,
+            IsBase64Encoded:   false,
+            Cookies:           nil,
+        }
+        return json.Marshal(resp)
+    }
+
+    func main() {
+        lambda.Start(&handler{})
+    }
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_1.png 221 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_2.png 471 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_3.png 374 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_4.png 500 220
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_5.png 500 924
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_6.png 332 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_7.png 450 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_8.png 261 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_9.png 500 931
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_10.png 398 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_11.png 156 980
+
+* API Gateway 실습
+
+.image 마른수건짜기/apigw_setup_12.png 278 980
+
+* Golang API Gateway + Lambda 라우팅, 문제점 파악, 문제 해결 여정
+
+* 코드 예제 (기반)
+
+    func (*handler) Invoke(_ context.Context, payload []byte) ([]byte, error) {
+        var req events.APIGatewayV2HTTPRequest
+        err := json.Unmarshal(payload, &req)
+        if err != nil {
+            return nil, err
+        }
+        var resp events.APIGatewayV2HTTPResponse
+
+        // route code
+
+        return json.Marshal(resp)
+    }
+
+* 코드 예제 (route code) - 1
+
+    switch req.RawPath {
+    case "/":
+        switch req.RequestContext.HTTP.Method {
+        case http.MethodGet:
+            resp = helloworld()
+        default:
+            resp = methodNotAllowed()
+        }
+    case "/item":
+        switch req.RequestContext.HTTP.Method {
+        case http.MethodGet:
+            resp = item()
+        default:
+            resp = methodNotAllowed()
+        }
+    ...
+
+* 코드 예제 (route code) - 2
+
+    ...
+    //case "/etc":
+    //	switch req.RequestContext.HTTP.Method {
+    //	case http.MethodPost:
+    //		//... code ...
+    //	default:
+    //		resp = methodNotAllowed()
+    //	}
+    // ... code ...
+    default:
+        resp = notfound()
+    }
+
+* 벌써 화남
+
+.image 마른수건짜기/gaviscon_before.jpg
+
+* 일반적인 고 웹 어플리케이션 (net/http)
+
+    package main
+
+    import "net/http"
+
+    func main() {
+        m := http.NewServeMux()
+        m.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+            writer.WriteHeader(http.StatusOK)
+            writer.Header().Set("Content-Type", "application/json")
+            writer.Write([]byte(`{"hello": "world"}`))
+        })
+        m.HandleFunc("/item", func(writer http.ResponseWriter, request *http.Request) {
+            writer.WriteHeader(http.StatusOK)
+            writer.Header().Set("Content-Type", "application/json")
+            writer.Write([]byte(`{"id": 1, "name": "My Item"}`))
+        })
+        http.ListenAndServe(":3000", m)
+    }
+
+* 일반적인 고 웹 어플리케이션 (Echo Framework)
+
+    package main
+
+    import (
+        "github.com/labstack/echo/v4"
+        "net/http"
+    )
+
+    func main() {
+        e := echo.New()
+        e.GET("/", func(c echo.Context) error {
+            return c.JSON(http.StatusOK, echo.Map{
+                "hello": "world",
+            })
+        })
+        e.GET("/item", func(c echo.Context) error {
+            return c.JSON(http.StatusOK, echo.Map{
+                "id":   1,
+                "name": "My Item",
+            })
+        })
+        e.Logger.Fatal(e.Start(":1323"))
+    }
+
+* 발표 주제 리마인드
+고언어로 API Gateway + Lambda 쉽게 쓰기
+.image 마른수건짜기/물음표_밈.jpg
+
+* 쉬...쉽나?
+
+* Thank you
+-
+
+* 합치면 되는거 아닌가?
+
+.image 마른수건짜기/ppap.jpg
+
+* Framework 를 만들어보자
+- Echo Framework 기능을 포팅해보자
+- 람다 환경이 아니여도 실행이 가능해야함
+- 람다 환경, 비 람다 환경 동작이 동일해야함
+
+* Golam
+[[https://github.com/unsafe-risk/golam][Golam (아카이브 예정)]]
+
+* Golam Example
+
+    package main
+
+    import (
+        "github.com/unsafe-risk/golam"
+        "net/http"
+    )
+
+    type Json map[string]interface{}
+
+    func main() {
+        g := golam.New()
+        g.GET("/", func(c golam.Context) error {
+            return c.JSON(http.StatusOK, Json{
+                "hello": "world",
+            })
+        })
+        g.GET("/{param+}", func(c golam.Context) error {
+            return c.JSON(http.StatusOK, Json{
+                "hello": c.PathParams()["param"],
+            })
+        })
+        g.StartWithLocalAddr(":3000")
+    }
+
+* 아카이브 이유
+- 만들다 보니 힘들다...
+- 기능 언제 다 포팅하냐...
+- 기능 추가 하기 귀찮아졌다...
+- 혼자하니까 힘들다...
+
+* 아카이브 이유 결론
+.image 마른수건짜기/블루락_시시해서죽고싶어졌다.jpg
+
+* 대체제
+- [[https://github.com/aws-serverless-go/httplam][*httplam*]]
+- [[https://github.com/aws-serverless-go/echolam][*echolam*]]
+
+* httplam, echolam 소개
+
+* httplam
+- net/http 기반 고 웹 어플리케이션 개발 가능
+- 고 표준 라이브러리 호환성
+- 람다 환경이 아니여도 실행이 가능해야함
+- 람다 환경, 비 람다 환경 동작이 동일해야함
+
+* echolam
+- Echo Framework 기반 고 웹 어플리케이션 개발 가능
+- HTTP API 개발에 있어 Echo Framework 기능들을 대부분 사용 가능해야함
+- 람다 환경이 아니여도 실행이 가능해야함
+- 람다 환경, 비 람다 환경 동작이 동일해야함
+
+* httplam 코드 예제
+    package main
+
+    import (
+        "github.com/aws-serverless-go/httplam"
+        "net/http"
+    )
+
+    func main() {
+        m := http.NewServeMux()
+        m.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+            writer.WriteHeader(http.StatusOK)
+            writer.Header().Set("Content-Type", "application/json")
+            writer.Write([]byte(`{"hello": "world"}`))
+        })
+        if httplam.IsLambdaRuntime() {
+            httplam.StartLambdaWithAPIGateway(m)
+        } else {
+            http.ListenAndServe(":3000", m)
+        }
+    }
+
+* echolam 코드 예제
+    package main
+
+    import (
+    	"github.com/aws-serverless-go/echolam"
+    	"github.com/aws-serverless-go/httplam"
+    	"github.com/labstack/echo/v4"
+    	"net/http"
+    )
+
+    func main() {
+    	e := echo.New()
+    	e.GET("/", func(c echo.Context) error {
+    		return c.JSON(http.StatusOK, echo.Map{
+    			"hello": "world",
+    		})
+    	})
+    	if httplam.IsLambdaRuntime() {
+    		echolam.StartLambdaWithAPIGateway(e)
+    	} else {
+    		e.Logger.Fatal(e.Start(":1323"))
+    	}
+    }
+
+* 실습
+
+* 아쉬운 점
+- cli 부재
+- API Gateway 손으로 라우팅 걸어줘야함
+- Lambda 손으로 배포 해줘야함 -> CI/CD 파이프라인 구성으로 해결 가능하긴함
+- Response 부분에서 continuous buffer 이다 보니 buffer의 capacity 사이즈를 넘어가는 순간 새로운 slice 생성 및 값 복사에 대한 오버헤드, non-continuous buffer로 대체 필요
+기여 문의는 DM 으로 부탁드려요~🙏
+농담이고 누구든 기여를 환영합니다.
+[[https://github.com/orgs/aws-serverless-go/repositories][Link]]
+
+* 한계
+- 모든 람다의 한계점
+- 모든 API Gateway의 한계점
+- 느리다..
+
+[[https://docs.aws.amazon.com/ko_kr/lambda/latest/dg/gettingstarted-limits.html][Lambda quotas]]
+[[https://docs.aws.amazon.com/ko_kr/apigateway/latest/developerguide/limits.html#http-api-quotas][API Gateway quotas]]
