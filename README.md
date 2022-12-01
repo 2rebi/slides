@@ -18,7 +18,7 @@ docker run -d -p 3999:3999 hellp/slides
 ### Docker Build, Push
 
 ```shell
-docker build -t hellp/slides .
+docker build --platform amd64 -t hellp/slides .
 docker push hellp/slides
 ```
 
